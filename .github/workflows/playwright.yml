@@ -27,11 +27,20 @@ jobs:
       run: npx playwright install --with-deps
     - name: Run Playwright tests
       run: npx playwright test
+    - name: Generate Allure Report
+      if: ${{ !cancelled() }}
+      run: npx allure generate ./allure-results --clean -o ./allure-report
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
         name: playwright-report
         path: playwright-report/
+        retention-days: 30
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: allure-report
+        path: allure-report/
         retention-days: 30
   
   deploy:
@@ -42,17 +51,28 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-    - name: Download artifact
+    - name: Download Playwright report
       uses: actions/download-artifact@v4
       with:
         name: playwright-report
         path: playwright-report
+    - name: Download Allure report
+      uses: actions/download-artifact@v4
+      with:
+        name: allure-report
+        path: allure-report
+    - name: Create combined reports directory
+      run: |
+        mkdir -p reports
+        mv playwright-report reports/playwright
+        mv allure-report reports/allure
+        echo '<html><body><h1>Test Reports</h1><ul><li><a href="playwright/">Playwright Report</a></li><li><a href="allure/">Allure Report</a></li></ul></body></html>' > reports/index.html
     - name: Setup Pages
       uses: actions/configure-pages@v4
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: playwright-report
+        path: reports
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
